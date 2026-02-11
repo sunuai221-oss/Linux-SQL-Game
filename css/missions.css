@@ -1,0 +1,352 @@
+/* Missions panel */
+#missions-panel {
+    width: var(--panel-width);
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-shrink: 0;
+    transition: background 0.3s, border-color 0.3s;
+}
+
+.missions-header {
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.missions-header h2 {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    color: var(--text-primary);
+}
+
+/* Progress bar */
+.progress-bar {
+    height: 6px;
+    background: var(--bg-surface);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-green));
+    border-radius: 3px;
+    transition: width 0.5s ease;
+}
+
+.progress-text {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+/* Missions list */
+.missions-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+}
+
+.missions-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.missions-list::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border-radius: 2px;
+}
+
+/* Level group */
+.level-group {
+    margin-bottom: 16px;
+}
+
+.level-group-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-secondary);
+    padding: 4px 8px;
+    margin-bottom: 4px;
+}
+
+/* Mission card */
+.mission-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    cursor: default;
+    transition: background 0.2s;
+    margin-bottom: 2px;
+}
+
+.mission-card:hover {
+    background: var(--bg-surface);
+}
+
+.mission-card.active {
+    background: var(--bg-surface);
+    border-left: 3px solid var(--accent);
+    padding-left: 9px;
+}
+
+.mission-card.completed {
+    opacity: 0.6;
+}
+
+.mission-card.locked {
+    opacity: 0.35;
+    pointer-events: none;
+}
+
+.mission-icon {
+    font-size: 16px;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.mission-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.mission-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+
+.mission-desc {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.mission-points {
+    font-size: 11px;
+    color: var(--accent-yellow);
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+/* Hint button */
+.hint-section {
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+}
+
+.btn-hint {
+    width: 100%;
+    padding: 8px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    color: var(--accent-yellow);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-hint:hover {
+    border-color: var(--accent-yellow);
+}
+
+.btn-hint:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.hint-text {
+    margin-top: 8px;
+    padding: 8px 12px;
+    background: var(--hint-bg);
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--hint-text);
+    line-height: 1.5;
+}
+
+/* Panel footer */
+.panel-footer {
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+}
+
+/* Toggle switch */
+.toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.toggle-label input {
+    display: none;
+}
+
+.toggle-slider {
+    width: 36px;
+    height: 20px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    position: relative;
+    transition: background 0.3s, border-color 0.3s;
+}
+
+.toggle-slider::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    background: var(--text-muted);
+    border-radius: 50%;
+    transition: all 0.3s;
+}
+
+.toggle-label input:checked + .toggle-slider {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.toggle-label input:checked + .toggle-slider::after {
+    left: 18px;
+    background: #fff;
+}
+
+/* ===========================
+   Mission wrapper & title row
+   =========================== */
+.mission-wrapper {
+    margin-bottom: 2px;
+}
+
+.mission-title-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Lesson button (book icon) */
+.btn-lesson {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 2px;
+    line-height: 1;
+    opacity: 0.5;
+    transition: opacity 0.2s, transform 0.2s;
+    flex-shrink: 0;
+}
+
+.btn-lesson:hover {
+    opacity: 1;
+    transform: scale(1.2);
+}
+
+/* ===========================
+   Lesson card (hidden by default)
+   =========================== */
+.lesson-card {
+    margin: 4px 0 8px 26px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-strong);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    overflow: hidden;
+    animation: lessonSlideIn 0.2s ease;
+}
+
+@keyframes lessonSlideIn {
+    from { opacity: 0; max-height: 0; }
+    to { opacity: 1; max-height: 600px; }
+}
+
+.lesson-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    background: var(--accent);
+    color: #fff;
+}
+
+.lesson-title {
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.lesson-close {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 0 4px;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.lesson-close:hover {
+    opacity: 1;
+}
+
+.lesson-body {
+    padding: 10px 12px;
+    font-size: 11.5px;
+    line-height: 1.6;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.lesson-body::-webkit-scrollbar {
+    width: 3px;
+}
+
+.lesson-body::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border-radius: 2px;
+}
+
+.lesson-body b {
+    color: var(--accent);
+}
+
+.lesson-body i {
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+/* Code examples in lessons */
+.lesson-example {
+    display: block;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 6px 8px;
+    margin: 4px 0;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 11px;
+    color: var(--accent-blue);
+    white-space: pre;
+    overflow-x: auto;
+}
+
+.lesson-dir {
+    color: var(--accent-blue);
+    font-weight: bold;
+}

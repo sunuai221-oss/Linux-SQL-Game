@@ -1,0 +1,239 @@
+/* ===========================
+   Anthropic Theme - Light Mode (default)
+   =========================== */
+:root {
+    /* Anthropic brand */
+    --anthropic-terra: #D97757;
+    --anthropic-terra-dark: #C15F3C;
+    --anthropic-terra-light: #E8956F;
+
+    /* Light mode */
+    --bg-primary: #FAF9F5;
+    --bg-secondary: #F0EFEA;
+    --bg-surface: #E8E6DC;
+
+    --text-primary: #3D3929;
+    --text-secondary: #828179;
+    --text-muted: #B0AEA5;
+
+    --accent: #D97757;
+    --accent-hover: #C15F3C;
+    --accent-green: #788C5D;
+    --accent-yellow: #C49A2A;
+    --accent-red: #C15F3C;
+    --accent-blue: #6A9BCC;
+
+    --border: #E8E6DC;
+    --border-strong: #B0AEA5;
+
+    --radius: 8px;
+    --header-height: 56px;
+    --panel-width: 320px;
+
+    /* Terminal (always dark-ish) */
+    --term-bg: #1A1A1A;
+    --term-header: #262626;
+    --term-text: #D4D4D4;
+    --term-prompt: #D97757;
+    --term-path: #6A9BCC;
+    --term-dir: #6A9BCC;
+    --term-exec: #788C5D;
+    --term-error: #E07A5F;
+    --term-info: #6A9BCC;
+    --term-banner: #D97757;
+    --term-success: #788C5D;
+    --term-yellow: #D4A843;
+    --term-scrollbar: #3D3929;
+
+    /* Toast */
+    --toast-bg: #EAF0E4;
+    --toast-border: #788C5D;
+    --toast-text: #4A5A36;
+
+    /* Hint */
+    --hint-bg: #FFF3E0;
+    --hint-text: #A07030;
+}
+
+/* ===========================
+   Dark Mode
+   =========================== */
+[data-theme="dark"] {
+    --bg-primary: #141413;
+    --bg-secondary: #1C1B19;
+    --bg-surface: #2A2823;
+
+    --text-primary: #F0EFEA;
+    --text-secondary: #B0AEA5;
+    --text-muted: #828179;
+
+    --accent: #E8956F;
+    --accent-hover: #D97757;
+    --accent-green: #96AD76;
+    --accent-yellow: #E0C068;
+    --accent-red: #E07A5F;
+    --accent-blue: #8BB5DD;
+
+    --border: #2A2823;
+    --border-strong: #3D3929;
+
+    --term-bg: #0D0D0C;
+    --term-header: #1C1B19;
+    --term-text: #E8E6DC;
+    --term-prompt: #E8956F;
+    --term-path: #8BB5DD;
+    --term-dir: #8BB5DD;
+    --term-exec: #96AD76;
+    --term-error: #E07A5F;
+    --term-info: #8BB5DD;
+    --term-banner: #E8956F;
+    --term-success: #96AD76;
+    --term-yellow: #E0C068;
+    --term-scrollbar: #3D3929;
+
+    --toast-bg: #1E2B1A;
+    --toast-border: #96AD76;
+    --toast-text: #96AD76;
+
+    --hint-bg: #2A2518;
+    --hint-text: #E0C068;
+}
+
+/* ===========================
+   Base
+   =========================== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: background 0.3s, color 0.3s;
+}
+
+/* ===========================
+   Header
+   =========================== */
+#app-header {
+    height: var(--header-height);
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    flex-shrink: 0;
+    transition: background 0.3s, border-color 0.3s;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.logo {
+    font-size: 24px;
+}
+
+.header-left h1 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent);
+}
+
+.header-center {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.badge {
+    background: var(--accent);
+    color: #fff;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.level-name {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.score {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--accent-yellow);
+}
+
+.btn-theme,
+.btn-reset {
+    background: none;
+    border: 1px solid var(--border-strong);
+    color: var(--text-secondary);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px 10px;
+    border-radius: var(--radius);
+    transition: all 0.2s;
+    line-height: 1;
+}
+
+.btn-theme:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+}
+
+.btn-reset:hover {
+    color: var(--accent-red);
+    border-color: var(--accent-red);
+}
+
+/* ===========================
+   Main layout
+   =========================== */
+#app-main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* ===========================
+   Responsive
+   =========================== */
+@media (max-width: 768px) {
+    :root {
+        --panel-width: 100%;
+    }
+
+    #app-main {
+        flex-direction: column;
+    }
+
+    #missions-panel {
+        width: 100%;
+        max-height: 200px;
+        border-right: none !important;
+        border-bottom: 1px solid var(--border);
+    }
+
+    #terminal-container {
+        flex: 1;
+    }
+}
