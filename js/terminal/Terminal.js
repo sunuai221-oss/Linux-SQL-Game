@@ -175,9 +175,19 @@ export class Terminal {
 
         // Handle redirections
         if (parsed.redirect && result && !result.isError) {
+            const safeRedirectPath = this._sanitizeRedirectPath(parsed.redirect.file);
+            if (!safeRedirectPath) {
+                this._appendOutput('redirection: invalid output path', false, 'output-error');
+                result = { output: '', isError: true };
+                this._updatePrompt();
+                this._scrollToBottom();
+                this.onCommandExecuted(input, parsed, result);
+                return;
+            }
+
             const content = result.output || '';
             const writeResult = this.fs.writeFile(
-                parsed.redirect.file,
+                safeRedirectPath,
                 parsed.redirect.type === 'append' ? '\n' + content : content,
                 parsed.redirect.type === 'append'
             );
@@ -330,11 +340,68 @@ export class Terminal {
         const line = document.createElement('div');
         line.className = 'output-line' + (className ? ' ' + className : '');
         if (isHtml) {
-            line.innerHTML = text;
+            line.appendChild(this._createSafeHtmlFragment(text));
         } else {
             line.textContent = text;
         }
         this.outputEl.appendChild(line);
+    }
+
+    _createSafeHtmlFragment(text) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(`<div>${String(text)}</div>`, 'text/html');
+        const source = doc.body.firstElementChild || doc.body;
+        const fragment = document.createDocumentFragment();
+
+        const allowedTags = new Set(['SPAN', 'B', 'I', 'STRONG', 'EM', 'BR']);
+        const allowedClasses = new Set([
+            'output-prompt',
+            'output-info',
+            'output-error',
+            'output-success',
+            'output-dir',
+            'output-exec',
+            'output-banner',
+            'output-permission',
+        ]);
+
+        const sanitizeNode = (node) => {
+            if (node.nodeType === Node.TEXT_NODE) {
+                return document.createTextNode(node.textContent || '');
+            }
+
+            if (node.nodeType !== Node.ELEMENT_NODE) {
+                return document.createTextNode('');
+            }
+
+            const tag = node.tagName.toUpperCase();
+            if (!allowedTags.has(tag)) {
+                return document.createTextNode(node.textContent || '');
+            }
+
+            const el = document.createElement(tag.toLowerCase());
+
+            if (tag === 'SPAN') {
+                const classNames = (node.getAttribute('class') || '')
+                    .split(/\s+/)
+                    .filter((c) => allowedClasses.has(c));
+                if (classNames.length > 0) {
+                    el.className = classNames.join(' ');
+                }
+            }
+
+            for (const child of node.childNodes) {
+                el.appendChild(sanitizeNode(child));
+            }
+
+            return el;
+        };
+
+        for (const child of source.childNodes) {
+            fragment.appendChild(sanitizeNode(child));
+        }
+
+        return fragment;
     }
 
     _getPromptHtml() {
@@ -404,5 +471,16 @@ ${this._t('terminal.welcomeMan', 'Type <span class="output-info">man &lt;command
             });
         }
         return this.i18n.t(key, fallback, params);
+    }
+
+    _sanitizeRedirectPath(path) {
+        if (typeof path !== 'string') return null;
+        const trimmed = path.trim();
+        if (!trimmed || trimmed.length > 260) return null;
+        if (trimmed.includes('\0') || trimmed.includes('\\')) return null;
+
+        const resolved = this.fs.resolvePath(trimmed);
+        if (!resolved || !resolved.startsWith('/')) return null;
+        return resolved;
     }
 }
