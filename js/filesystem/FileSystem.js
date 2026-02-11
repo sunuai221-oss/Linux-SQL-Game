@@ -6,6 +6,13 @@ export class FileSystem {
         this.username = 'user';
         this.hostname = 'linux-game';
         this.userGroups = new Set(['user']);
+        this.users = new Map();
+        this.groupIds = new Map();
+        this.nextUid = 1001;
+        this.nextGid = 1001;
+
+        this._initAccountsFromTree();
+        this._refreshPasswdFile();
     }
 
     _buildTree(node, name = '/', parent = null) {
@@ -31,6 +38,360 @@ export class FileSystem {
         }
 
         return entry;
+    }
+
+    _initAccountsFromTree() {
+        // Seed core groups and users for deterministic IDs.
+        this._ensureGroupRecord('root', 0);
+        this._ensureGroupRecord('user', 1000);
+        this._ensureGroupRecord('nobody', 65534);
+        this._ensureGroupRecord('hr', 2000);
+        this._ensureGroupRecord('security', 2001);
+        this._ensureGroupRecord('admin', 2002);
+        this._ensureGroupRecord('finance', 2003);
+        this._ensureGroupRecord('executive', 2004);
+        this._ensureGroupRecord('marketing', 2005);
+
+        this._ensureUserRecord({
+            username: 'root',
+            uid: 0,
+            primaryGroup: 'root',
+            supplementalGroups: ['root'],
+            home: '/root',
+            shell: '/bin/bash',
+            locked: false,
+        });
+        this._ensureUserRecord({
+            username: 'user',
+            uid: 1000,
+            primaryGroup: 'user',
+            supplementalGroups: ['user'],
+            home: '/home/user',
+            shell: '/bin/bash',
+            locked: false,
+        });
+        this._ensureUserRecord({
+            username: 'nobody',
+            uid: 65534,
+            primaryGroup: 'nobody',
+            supplementalGroups: ['nobody'],
+            home: '/nonexistent',
+            shell: '/usr/sbin/nologin',
+            locked: true,
+        });
+
+        this._scanTreeForOwnership(this.root);
+        this._syncCurrentUserGroups();
+    }
+
+    _scanTreeForOwnership(node) {
+        if (!node) return;
+
+        if (node.owner) {
+            this._ensureUserRecord({
+                username: node.owner,
+                primaryGroup: node.group || node.owner,
+                supplementalGroups: [node.group || node.owner],
+                home: node.owner === 'root' ? '/root' : `/home/${node.owner}`,
+                shell: '/bin/bash',
+                locked: false,
+            });
+        }
+        if (node.group) {
+            this._ensureGroupRecord(node.group);
+        }
+
+        if (node.type === 'dir' && node.children) {
+            for (const child of Object.values(node.children)) {
+                this._scanTreeForOwnership(child);
+            }
+        }
+    }
+
+    _ensureGroupRecord(groupName, fixedId = null) {
+        if (!groupName) return null;
+        if (this.groupIds.has(groupName)) return this.groupIds.get(groupName);
+
+        const gid = Number.isInteger(fixedId) ? fixedId : this.nextGid++;
+        this.groupIds.set(groupName, gid);
+        if (gid >= this.nextGid) this.nextGid = gid + 1;
+        return gid;
+    }
+
+    _ensureUserRecord(user) {
+        if (!user || !user.username) return null;
+        if (this.users.has(user.username)) return this.users.get(user.username);
+
+        const username = user.username;
+        const primaryGroup = user.primaryGroup || username;
+        this._ensureGroupRecord(primaryGroup);
+        for (const group of user.supplementalGroups || []) {
+            this._ensureGroupRecord(group);
+        }
+
+        const uid = Number.isInteger(user.uid) ? user.uid : this.nextUid++;
+        if (uid >= this.nextUid) this.nextUid = uid + 1;
+
+        const entry = {
+            username,
+            uid,
+            primaryGroup,
+            supplementalGroups: new Set(user.supplementalGroups || [primaryGroup]),
+            home: user.home || `/home/${username}`,
+            shell: user.shell || '/bin/bash',
+            locked: !!user.locked,
+        };
+        this.users.set(username, entry);
+        return entry;
+    }
+
+    _syncCurrentUserGroups() {
+        const current = this.users.get(this.username);
+        if (!current) {
+            this.userGroups = new Set([this.username]);
+            return;
+        }
+
+        this.userGroups = new Set([current.primaryGroup, ...current.supplementalGroups]);
+    }
+
+    _refreshPasswdFile() {
+        const passwd = this.getNode('/etc/passwd');
+        if (!passwd || passwd.type !== 'file') return;
+
+        const sortedUsers = [...this.users.values()].sort((a, b) => a.uid - b.uid);
+        const lines = sortedUsers.map((user) => {
+            const gid = this.groupIds.get(user.primaryGroup) ?? 1000;
+            const gecos = user.username === 'root' ? 'root' : user.username;
+            const shell = user.locked ? '/usr/sbin/nologin' : (user.shell || '/bin/bash');
+            return `${user.username}:x:${user.uid}:${gid}:${gecos}:${user.home}:${shell}`;
+        });
+        passwd.content = lines.join('\n');
+        passwd.mtime = Date.now();
+    }
+
+    _isValidAccountName(name) {
+        return typeof name === 'string' && /^[a-z_][a-z0-9_-]{0,31}$/.test(name);
+    }
+
+    getUser(username) {
+        return this.users.get(username) || null;
+    }
+
+    useradd(username, options = {}) {
+        if (!this._isValidAccountName(username)) {
+            return { error: `useradd: invalid user name '${username}'` };
+        }
+        if (this.users.has(username)) {
+            return { error: `useradd: user '${username}' already exists` };
+        }
+
+        const primaryGroup = options.primaryGroup || username;
+        if (options.primaryGroup && !this.groupIds.has(primaryGroup)) {
+            return { error: `useradd: group '${primaryGroup}' does not exist` };
+        }
+
+        const supplemental = new Set();
+        if (Array.isArray(options.supplementalGroups)) {
+            for (const group of options.supplementalGroups) {
+                if (!this.groupIds.has(group)) {
+                    return { error: `useradd: group '${group}' does not exist` };
+                }
+                supplemental.add(group);
+            }
+        }
+
+        this._ensureGroupRecord(primaryGroup);
+        supplemental.add(primaryGroup);
+
+        const home = `/home/${username}`;
+        this._ensureUserRecord({
+            username,
+            primaryGroup,
+            supplementalGroups: [...supplemental],
+            home,
+            shell: '/bin/bash',
+            locked: false,
+        });
+
+        const mk = this.createDir(home, true);
+        if (!mk.error) {
+            const homeNode = this.getNode(home);
+            if (homeNode) {
+                homeNode.owner = username;
+                homeNode.group = primaryGroup;
+                homeNode.permissions = 'rwxr-xr-x';
+            }
+        }
+
+        this._refreshPasswdFile();
+        return { success: true };
+    }
+
+    usermod(username, options = {}) {
+        const user = this.users.get(username);
+        if (!user) {
+            return { error: `usermod: user '${username}' does not exist` };
+        }
+
+        if (options.newLogin) {
+            const newLogin = options.newLogin;
+            if (!this._isValidAccountName(newLogin)) {
+                return { error: `usermod: invalid user name '${newLogin}'` };
+            }
+            if (this.users.has(newLogin)) {
+                return { error: `usermod: user '${newLogin}' already exists` };
+            }
+
+            this.users.delete(username);
+            user.username = newLogin;
+            this.users.set(newLogin, user);
+            this._replaceOwnershipUsername(this.root, username, newLogin);
+            if (this.username === username) {
+                this.username = newLogin;
+            }
+            username = newLogin;
+        }
+
+        if (options.primaryGroup) {
+            if (!this.groupIds.has(options.primaryGroup)) {
+                return { error: `usermod: group '${options.primaryGroup}' does not exist` };
+            }
+            user.primaryGroup = options.primaryGroup;
+            user.supplementalGroups.add(options.primaryGroup);
+        }
+
+        if (Array.isArray(options.supplementalGroups)) {
+            for (const group of options.supplementalGroups) {
+                if (!this.groupIds.has(group)) {
+                    return { error: `usermod: group '${group}' does not exist` };
+                }
+            }
+
+            if (options.appendSupplemental) {
+                for (const group of options.supplementalGroups) {
+                    user.supplementalGroups.add(group);
+                }
+            } else {
+                user.supplementalGroups = new Set([user.primaryGroup, ...options.supplementalGroups]);
+            }
+        }
+
+        if (options.home) {
+            const homePath = this.resolvePath(options.home);
+            user.home = homePath;
+            const mk = this.createDir(homePath, true);
+            if (!mk.error) {
+                const homeNode = this.getNode(homePath);
+                if (homeNode) {
+                    homeNode.owner = user.username;
+                    homeNode.group = user.primaryGroup;
+                    homeNode.permissions = 'rwxr-xr-x';
+                }
+            }
+        }
+
+        if (options.lock === true) {
+            user.locked = true;
+        }
+
+        if (this.username === user.username) {
+            this._syncCurrentUserGroups();
+        }
+        this._refreshPasswdFile();
+        return { success: true };
+    }
+
+    userdel(username, options = {}) {
+        const user = this.users.get(username);
+        if (!user) {
+            return { error: `userdel: user '${username}' does not exist` };
+        }
+        if (username === 'root') {
+            return { error: `userdel: cannot remove root user` };
+        }
+
+        this.users.delete(username);
+
+        if (options.removeHome && user.home) {
+            this._deletePathForce(user.home);
+        }
+
+        this._refreshPasswdFile();
+        return { success: true };
+    }
+
+    _deletePathForce(path) {
+        const absPath = this.resolvePath(path);
+        if (absPath === '/') return false;
+        const parentPath = absPath.substring(0, absPath.lastIndexOf('/')) || '/';
+        const name = absPath.substring(absPath.lastIndexOf('/') + 1);
+        const parent = this.getNode(parentPath);
+        if (!parent || parent.type !== 'dir' || !parent.children[name]) return false;
+        delete parent.children[name];
+        return true;
+    }
+
+    _replaceOwnershipUsername(node, oldUser, newUser) {
+        if (!node) return;
+        if (node.owner === oldUser) node.owner = newUser;
+        if (node.type === 'dir' && node.children) {
+            for (const child of Object.values(node.children)) {
+                this._replaceOwnershipUsername(child, oldUser, newUser);
+            }
+        }
+    }
+
+    chown(path, ownerSpec, recursive = false) {
+        const node = this.getNode(path);
+        if (!node) return { error: `chown: cannot access '${path}': No such file or directory` };
+
+        const spec = String(ownerSpec || '').trim();
+        if (!spec) return { error: 'chown: missing owner operand' };
+
+        let newOwner = null;
+        let newGroup = null;
+
+        if (spec.startsWith(':')) {
+            newGroup = spec.slice(1);
+        } else if (spec.includes(':')) {
+            const [ownerPart, groupPart] = spec.split(':');
+            newOwner = ownerPart || null;
+            newGroup = groupPart || null;
+        } else {
+            newOwner = spec;
+        }
+
+        if (newOwner && !this.users.has(newOwner)) {
+            return { error: `chown: invalid user: '${newOwner}'` };
+        }
+        if (newGroup && !this.groupIds.has(newGroup)) {
+            return { error: `chown: invalid group: '${newGroup}'` };
+        }
+
+        const applyOwnership = (target) => {
+            if (newOwner) target.owner = newOwner;
+            if (newGroup) target.group = newGroup;
+            if (!target.group && target.owner) {
+                target.group = this.users.get(target.owner)?.primaryGroup || target.owner;
+            }
+        };
+
+        if (recursive && node.type === 'dir') {
+            const walk = (current) => {
+                applyOwnership(current);
+                if (current.type === 'dir') {
+                    for (const child of Object.values(current.children)) {
+                        walk(child);
+                    }
+                }
+            };
+            walk(node);
+        } else {
+            applyOwnership(node);
+        }
+
+        return { success: true };
     }
 
     // Resolve a path string to an absolute path
@@ -720,6 +1081,18 @@ export class FileSystem {
         return {
             tree: serializeNode(this.root),
             cwd: this.cwd,
+            users: [...this.users.values()].map((user) => ({
+                username: user.username,
+                uid: user.uid,
+                primaryGroup: user.primaryGroup,
+                supplementalGroups: [...user.supplementalGroups],
+                home: user.home,
+                shell: user.shell,
+                locked: user.locked,
+            })),
+            groupIds: [...this.groupIds.entries()],
+            nextUid: this.nextUid,
+            nextGid: this.nextGid,
         };
     }
 
@@ -727,5 +1100,35 @@ export class FileSystem {
     restore(data) {
         this.root = this._buildTree(data.tree, '/');
         this.cwd = data.cwd || this.home;
+
+        if (Array.isArray(data.groupIds)) {
+            this.groupIds = new Map(data.groupIds);
+        } else {
+            this.groupIds = new Map();
+        }
+
+        this.users = new Map();
+        if (Array.isArray(data.users)) {
+            for (const user of data.users) {
+                this.users.set(user.username, {
+                    ...user,
+                    supplementalGroups: new Set(user.supplementalGroups || []),
+                });
+            }
+        }
+
+        this.nextUid = Number.isInteger(data.nextUid) ? data.nextUid : 1001;
+        this.nextGid = Number.isInteger(data.nextGid) ? data.nextGid : 1001;
+
+        if (this.users.size === 0 || this.groupIds.size === 0) {
+            this.users = new Map();
+            this.groupIds = new Map();
+            this.nextUid = 1001;
+            this.nextGid = 1001;
+            this._initAccountsFromTree();
+        }
+
+        this._syncCurrentUserGroups();
+        this._refreshPasswdFile();
     }
 }

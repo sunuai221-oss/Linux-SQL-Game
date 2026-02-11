@@ -44,6 +44,10 @@ const { exports: utilExports } = loadExports('js/commands/utils.js', ['registerU
     registry: registryExports.registry,
 });
 const { exports: parserExports } = loadExports('js/commands/CommandParser.js', ['CommandParser']);
+const { exports: fileExports } = loadExports('js/commands/files.js', ['registerFileCommands'], {
+    registry: registryExports.registry,
+    CommandParser: parserExports.CommandParser,
+});
 const { exports: levelsExports } = loadExports('js/missions/levels.js', ['missions']);
 const { exports: missionSystemExports } = loadExports('js/missions/MissionSystem.js', ['MissionSystem']);
 
@@ -53,6 +57,7 @@ const { registry } = registryExports;
 const { registerNavigationCommands } = navExports;
 const { registerSearchCommands } = searchExports;
 const { registerUtilCommands } = utilExports;
+const { registerFileCommands } = fileExports;
 const { CommandParser } = parserExports;
 const { missions } = levelsExports;
 const { MissionSystem } = missionSystemExports;
@@ -481,6 +486,74 @@ test('least privilege mission is present and validates symbolic chmod outcome', 
         parsed
     );
     assert.strictEqual(completed, true);
+});
+
+test('user admin commands require sudo and sudo allowlist is enforced', () => {
+    const vfs = new FileSystem(defaultStructure);
+    registerFileCommands(vfs);
+
+    const useraddHandler = registry.get('useradd').handler;
+    const sudoHandler = registry.get('sudo').handler;
+
+    const direct = useraddHandler(['alice'], {}, null, {});
+    assert.ok(direct.isError);
+    assert.ok(direct.output.includes('permission denied'));
+
+    const blocked = sudoHandler(['rm', '-rf', '/'], {}, null, {});
+    assert.ok(blocked.isError);
+    assert.ok(blocked.output.includes('blocked'));
+});
+
+test('sudo useradd/usermod/userdel lifecycle updates users and home directory', () => {
+    const vfs = new FileSystem(defaultStructure);
+    registerFileCommands(vfs);
+    const sudo = registry.get('sudo').handler;
+
+    let result = sudo(['useradd', '-G', 'security,admin', 'analyst1'], {}, null, {});
+    assert.ok(!result.isError);
+    assert.ok(vfs.getUser('analyst1'));
+    assert.ok(vfs.getNode('/home/analyst1'));
+
+    result = sudo(['usermod', '-a', '-G', 'marketing', 'analyst1'], {}, null, {});
+    assert.ok(!result.isError);
+    assert.ok(vfs.getUser('analyst1').supplementalGroups.has('marketing'));
+
+    result = sudo(['userdel', '-r', 'analyst1'], {}, null, {});
+    assert.ok(!result.isError);
+    assert.strictEqual(vfs.getUser('analyst1'), null);
+    assert.strictEqual(vfs.getNode('/home/analyst1'), null);
+});
+
+test('sudo chown changes owner and group on target file', () => {
+    const vfs = new FileSystem(defaultStructure);
+    registerFileCommands(vfs);
+    const sudo = registry.get('sudo').handler;
+
+    let result = sudo(['useradd', 'ops1'], {}, null, {});
+    assert.ok(!result.isError);
+
+    result = sudo(['chown', 'ops1:security', '/home/user/documents/notes.txt'], {}, null, {});
+    assert.ok(!result.isError);
+
+    const node = vfs.getNode('/home/user/documents/notes.txt');
+    assert.strictEqual(node.owner, 'ops1');
+    assert.strictEqual(node.group, 'security');
+});
+
+test('sudo/account management missions are present in level 5', () => {
+    const expected = [
+        'sudo-useradd-analyst-1',
+        'sudo-usermod-marketing-1',
+        'sudo-chown-rapport-copy-1',
+        'sudo-useradd-tempops-1',
+        'sudo-userdel-tempops-1',
+    ];
+
+    for (const id of expected) {
+        const mission = missions.find((m) => m.id === id);
+        assert.ok(mission, `Missing mission ${id}`);
+        assert.strictEqual(mission.level, 5);
+    }
 });
 
 run();

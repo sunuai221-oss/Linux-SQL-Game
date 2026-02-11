@@ -1437,6 +1437,89 @@ Le resultat attendu devient :
         },
     },
     {
+        id: 'sudo-useradd-analyst-1',
+        level: 5,
+        title: 'Sudo responsable',
+        description: 'Cree un compte analyst1 avec sudo useradd et ajoute-le aux groupes security et admin.',
+        hint: 'Tape : sudo useradd -G security,admin analyst1',
+        lesson: {
+            title: 'Responsible use of sudo',
+            content: `La commande <b>sudo</b> donne des privileges eleves temporairement.
+
+Utilise-la seulement pour des actions admin precises :
+<span class="lesson-example">$ sudo useradd -G security,admin analyst1</span>
+
+<b>Bonnes pratiques :</b>
+- n'utilise pas sudo pour des commandes non necessaires
+- verifie les commandes copiees depuis internet
+- applique le principe du moindre privilege`,
+        },
+        points: 170,
+        validate(fs, history, lastCmd, lastResult, parsed) {
+            if (!parsed || parsed.type !== 'command' || parsed.command !== 'sudo') return false;
+            if (!lastCmd.startsWith('sudo useradd')) return false;
+            const user = fs.getUser('analyst1');
+            return !!user && user.supplementalGroups.has('security') && user.supplementalGroups.has('admin');
+        },
+    },
+    {
+        id: 'sudo-usermod-marketing-1',
+        level: 5,
+        title: 'Modifier un compte',
+        description: 'Ajoute analyst1 au groupe marketing avec usermod en mode append.',
+        hint: 'Tape : sudo usermod -a -G marketing analyst1',
+        points: 165,
+        validate(fs, history, lastCmd, lastResult, parsed) {
+            if (!parsed || parsed.type !== 'command' || parsed.command !== 'sudo') return false;
+            if (!lastCmd.includes('usermod')) return false;
+            const user = fs.getUser('analyst1');
+            return !!user && user.supplementalGroups.has('marketing');
+        },
+    },
+    {
+        id: 'sudo-chown-rapport-copy-1',
+        level: 5,
+        title: 'Ownership pratique',
+        description: 'Change le proprietaire de documents/notes.txt vers analyst1 avec chown.',
+        hint: 'Tape : sudo chown analyst1 documents/notes.txt',
+        points: 170,
+        validate(fs, history, lastCmd, lastResult, parsed) {
+            if (!parsed || parsed.type !== 'command' || parsed.command !== 'sudo') return false;
+            if (!lastCmd.includes('chown')) return false;
+            const node = fs.getNode('/home/user/documents/notes.txt');
+            return !!node && node.owner === 'analyst1';
+        },
+    },
+    {
+        id: 'sudo-useradd-tempops-1',
+        level: 5,
+        title: 'Compte temporaire',
+        description: 'Cree un compte temporaire tempops avec groupe primaire security.',
+        hint: 'Tape : sudo useradd -g security tempops',
+        points: 160,
+        validate(fs, history, lastCmd, lastResult, parsed) {
+            if (!parsed || parsed.type !== 'command' || parsed.command !== 'sudo') return false;
+            if (!lastCmd.startsWith('sudo useradd')) return false;
+            const user = fs.getUser('tempops');
+            return !!user && user.primaryGroup === 'security';
+        },
+    },
+    {
+        id: 'sudo-userdel-tempops-1',
+        level: 5,
+        title: 'Suppression propre',
+        description: 'Supprime le compte tempops et son home avec userdel -r.',
+        hint: 'Tape : sudo userdel -r tempops',
+        points: 175,
+        validate(fs, history, lastCmd, lastResult, parsed) {
+            if (!parsed || parsed.type !== 'command' || parsed.command !== 'sudo') return false;
+            if (!lastCmd.includes('userdel')) return false;
+            const user = fs.getUser('tempops');
+            const home = fs.getNode('/home/tempops');
+            return !user && !home;
+        },
+    },
+    {
         id: 'pipe-1',
         level: 5,
         title: 'Enchaine les commandes',
