@@ -3,8 +3,8 @@ export const en = {
     autoTranslateMissions: true,
     ui: {
         htmlLang: 'en',
-        documentTitle: 'Linux Game - Learn the Terminal',
-        appTitle: 'Linux Game',
+        documentTitle: 'Linux SQL Game - Learn the Terminal',
+        appTitle: 'Linux SQL Game',
         missionsTitle: 'Missions',
         freeMode: 'Free mode',
         levelBadge: 'Level {level}',
@@ -24,7 +24,7 @@ export const en = {
         levelGroupTitle: 'Level {level} — {name}',
     },
     terminal: {
-        welcomeIntro: 'Welcome to <span class="output-info">Linux Game</span>! Learn Linux commands while playing.',
+        welcomeIntro: 'Welcome to <span class="output-info">Linux SQL Game</span>! Learn Linux and SQL while playing.',
         welcomeHelp: 'Type <span class="output-info">help</span> to see available commands.',
         welcomeMan: 'Type <span class="output-info">man &lt;command&gt;</span> for a command manual.',
         nanoPromptHelp: '[nano] Commands: /help /show /save /exit',

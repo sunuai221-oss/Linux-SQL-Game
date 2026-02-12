@@ -2,8 +2,8 @@ export const fr = {
     code: 'fr',
     ui: {
         htmlLang: 'fr',
-        documentTitle: 'Linux Game - Apprends le Terminal',
-        appTitle: 'Linux Game',
+        documentTitle: 'Linux SQL Game - Apprends le Terminal',
+        appTitle: 'Linux SQL Game',
         missionsTitle: 'Missions',
         freeMode: 'Mode libre',
         levelBadge: 'Niveau {level}',
@@ -23,7 +23,7 @@ export const fr = {
         levelGroupTitle: 'Niveau {level} — {name}',
     },
     terminal: {
-        welcomeIntro: 'Bienvenue dans <span class="output-info">Linux Game</span> ! Apprends les commandes Linux en t\'amusant.',
+        welcomeIntro: 'Bienvenue dans <span class="output-info">Linux SQL Game</span> ! Apprends Linux et SQL en t\'amusant.',
         welcomeHelp: 'Tape <span class="output-info">help</span> pour voir les commandes disponibles.',
         welcomeMan: 'Tape <span class="output-info">man &lt;commande&gt;</span> pour le manuel d\'une commande.',
         nanoPromptHelp: '[nano] Commandes: /help /show /save /exit',

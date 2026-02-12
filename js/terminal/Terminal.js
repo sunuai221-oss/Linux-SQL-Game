@@ -11,6 +11,11 @@ export class Terminal {
         this.history = new CommandHistory();
         this.autocomplete = new Autocomplete(fs, registry);
         this.nanoSession = null;
+        this.mode = 'linux';
+        this.modeExecutor = null;
+        this.modePrompt = null;
+        this.modeTitle = null;
+        this.modeAutocomplete = true;
 
         this.outputEl = document.getElementById('terminal-output');
         this.inputEl = document.getElementById('terminal-input');
@@ -83,12 +88,13 @@ export class Terminal {
     }
 
     _handleTab() {
+        if (!this.modeAutocomplete) return;
+
         const input = this.inputEl.value;
         const cursorPos = this.inputEl.selectionStart;
         const textBeforeCursor = input.substring(0, cursorPos);
 
         const parts = textBeforeCursor.split(' ');
-        const lastPart = parts[parts.length - 1];
 
         const result = this.autocomplete.complete(textBeforeCursor);
 
@@ -152,6 +158,29 @@ export class Terminal {
         }
 
         this.history.add(input);
+
+        if (this.mode !== 'linux') {
+            const parsed = { type: 'sql', raw: input };
+            let result;
+
+            try {
+                result = this.modeExecutor
+                    ? this.modeExecutor(input, { history: this.history.getAll() })
+                    : { output: `${this.mode}: execution mode is not configured`, isError: true };
+            } catch (error) {
+                result = { output: `sql: ${error.message}`, isError: true };
+            }
+
+            if (result && result.output) {
+                const safeText = this._toDisplayText(result.output, !!result.isHtml);
+                this._appendOutput(safeText, result.isError ? 'output-error' : '');
+            }
+
+            this._updatePrompt();
+            this._scrollToBottom();
+            this.onCommandExecuted(input, parsed, result);
+            return;
+        }
 
         const parsed = CommandParser.parse(input);
         if (!parsed || parsed.type === 'empty') {
@@ -356,6 +385,12 @@ export class Terminal {
             return `nano:${filePath}> `;
         }
 
+        if (this.mode !== 'linux') {
+            if (typeof this.modePrompt === 'function') return String(this.modePrompt());
+            if (typeof this.modePrompt === 'string') return this.modePrompt;
+            return `${this.mode}> `;
+        }
+
         const path = this.fs.displayPath(this.fs.cwd);
         const username = this.fs.username;
         const hostname = this.fs.hostname;
@@ -367,6 +402,18 @@ export class Terminal {
             const filePath = this.fs.displayPath(this.nanoSession.path);
             this.promptEl.textContent = `nano:${filePath}> `;
             this.titleEl.textContent = `nano: ${filePath}`;
+            return;
+        }
+
+        if (this.mode !== 'linux') {
+            this.promptEl.textContent = this._getPromptText();
+            if (typeof this.modeTitle === 'function') {
+                this.titleEl.textContent = String(this.modeTitle());
+            } else if (typeof this.modeTitle === 'string') {
+                this.titleEl.textContent = this.modeTitle;
+            } else {
+                this.titleEl.textContent = this.mode;
+            }
             return;
         }
 
@@ -392,7 +439,7 @@ export class Terminal {
  |_____|_|_| |_|\\__,_/_/\\_\\\\____|\\__,_|_| |_| |_|\\___|
 `;
         this._appendOutput(banner.trimEnd(), 'output-banner');
-        this._appendOutput(this._toDisplayText(this._t('terminal.welcomeIntro', 'Welcome to Linux Game! Learn Linux commands while playing.'), true));
+        this._appendOutput(this._toDisplayText(this._t('terminal.welcomeIntro', 'Welcome to Linux SQL Game! Learn Linux and SQL while playing.'), true));
         this._appendOutput('');
         this._appendOutput(this._toDisplayText(this._t('terminal.welcomeHelp', 'Type help to see available commands.'), true));
         this._appendOutput(this._toDisplayText(this._t('terminal.welcomeMan', 'Type man &lt;command&gt; for a command manual.'), true));
@@ -401,6 +448,29 @@ export class Terminal {
 
     focus() {
         this.inputEl.focus();
+    }
+
+    setMode(mode, options = {}) {
+        this.mode = mode || 'linux';
+        this.modeExecutor = typeof options.execute === 'function' ? options.execute : null;
+        this.modePrompt = options.prompt || null;
+        this.modeTitle = options.title || null;
+        this.modeAutocomplete = options.autocomplete !== false;
+        this.nanoSession = null;
+        this.history.reset();
+
+        this.clear();
+        if (Array.isArray(options.welcomeLines) && options.welcomeLines.length > 0) {
+            for (const line of options.welcomeLines) {
+                this._appendOutput(String(line));
+            }
+            this._appendOutput('');
+        } else if (this.mode === 'linux') {
+            this._showWelcome();
+        }
+
+        this._updatePrompt();
+        this._scrollToBottom();
     }
 
     _t(key, fallback, params = {}) {

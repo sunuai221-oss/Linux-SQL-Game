@@ -1,8 +1,8 @@
 @echo off
-title Linux Game - Serveur Local
+title Linux SQL Game - Serveur Local
 echo.
 echo  ========================================
-echo   Linux Game - Simulateur de Terminal
+echo   Linux SQL Game - Simulateur de Terminal
 echo  ========================================
 echo.
 echo  Demarrage du serveur local...

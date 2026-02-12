@@ -2,13 +2,16 @@ import { missions, levels } from './levels.js';
 import { storage } from './storage.js';
 
 export class MissionSystem {
-    constructor(fs, i18n = null) {
+    constructor(fs, i18n = null, options = {}) {
         this.fs = fs;
         this.i18n = i18n;
-        this.baseMissions = missions;
-        this.baseLevels = levels;
-        this.missions = missions;
-        this.levels = levels;
+        this.storage = options.storage || storage;
+        this.baseMissions = Array.isArray(options.missions) ? options.missions : missions;
+        this.baseLevels = Array.isArray(options.levels) ? options.levels : levels;
+        this.missions = this.baseMissions;
+        this.levels = this.baseLevels;
+        this.applyLocalization = options.applyLocalization !== false;
+        this.enablePermissionLessonFixtures = options.enablePermissionLessonFixtures !== false;
         this.completed = new Set();
         this.score = 0;
         this.hintsUsed = new Set();
@@ -18,7 +21,9 @@ export class MissionSystem {
 
         this._applyLocalization();
         this._loadProgress();
-        this._ensurePermissionLessonFixtures();
+        if (this.enablePermissionLessonFixtures) {
+            this._ensurePermissionLessonFixtures();
+        }
         this._renderMissions();
         this._updateHeader();
     }
@@ -279,7 +284,8 @@ export class MissionSystem {
     }
 
     _updateHeader() {
-        const currentLevel = this.missions[this.currentMissionIndex]?.level || 5;
+        const lastLevelId = this.levels[this.levels.length - 1]?.id || 1;
+        const currentLevel = this.missions[this.currentMissionIndex]?.level || lastLevelId;
         const levelInfo = this.levels.find(l => l.id === currentLevel);
 
         document.getElementById('level-badge').textContent = this._t('ui.levelBadge', 'Level {level}', { level: currentLevel });
@@ -300,23 +306,30 @@ export class MissionSystem {
     }
 
     setLanguage() {
-        this._applyLocalization();
+        if (this.applyLocalization) {
+            this._applyLocalization();
+        }
         this._renderMissions();
         this._updateHeader();
     }
 
     _saveProgress() {
-        storage.save({
+        const payload = {
             completed: [...this.completed],
             score: this.score,
             hintsUsed: [...this.hintsUsed],
             currentMissionIndex: this.currentMissionIndex,
-            filesystem: this.fs.serialize(),
-        });
+        };
+
+        if (this.fs && typeof this.fs.serialize === 'function') {
+            payload.filesystem = this.fs.serialize();
+        }
+
+        this.storage.save(payload);
     }
 
     _loadProgress() {
-        const data = storage.load();
+        const data = this.storage.load();
         if (!data || typeof data !== 'object') return;
 
         this.completed = new Set(Array.isArray(data.completed) ? data.completed : []);
@@ -329,7 +342,7 @@ export class MissionSystem {
             this.currentMissionIndex = this.missions.length;
         }
 
-        if (data.filesystem) {
+        if (data.filesystem && this.fs && typeof this.fs.restore === 'function') {
             try {
                 const restored = this.fs.restore(data.filesystem);
                 if (restored && restored.error) {
@@ -338,7 +351,7 @@ export class MissionSystem {
                     this.score = 0;
                     this.hintsUsed = new Set();
                     this.currentMissionIndex = 0;
-                    storage.clear();
+                    this.storage.clear();
                     return;
                 }
             } catch (error) {
@@ -347,7 +360,7 @@ export class MissionSystem {
                 this.score = 0;
                 this.hintsUsed = new Set();
                 this.currentMissionIndex = 0;
-                storage.clear();
+                this.storage.clear();
                 return;
             }
         }
@@ -389,11 +402,11 @@ export class MissionSystem {
         this.hintsUsed = new Set();
         this.currentMissionIndex = 0;
         this.commandHistory = [];
-        storage.clear();
+        this.storage.clear();
     }
 
     _applyLocalization() {
-        if (!this.i18n) {
+        if (!this.i18n || !this.applyLocalization) {
             this.missions = this.baseMissions;
             this.levels = this.baseLevels;
             return;
