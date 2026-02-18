@@ -1,6 +1,6 @@
 # Linux SQL Game
 
-Linux SQL Game is an interactive web app to learn Linux commands through a simulated terminal and progressive missions.
+Linux SQL Game is an interactive web app to learn Linux and SQL commands through a simulated terminal and progressive missions.
 
 ## Overview
 
